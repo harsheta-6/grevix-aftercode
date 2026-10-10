@@ -1,4 +1,5 @@
 from vision import analyze_frames
+from rules import diagnose, COSTS
 import os, shutil, uuid
 import cv2
 from fastapi import FastAPI, UploadFile, File
@@ -49,5 +50,10 @@ async def upload(video: UploadFile = File(...)):
         return {"id": vid_id, "error": "No frames could be read from this video"}
     sample = frames[:5]
     assessment = analyze_frames(sample)
+    diagnosis = diagnose(assessment["observations"], assessment["overall_condition"])
+    diagnosis["works_detail"] = [
+        {"work": w, **COSTS[w]} for w in diagnosis["works"]
+    ]
     return {"id": vid_id, "filename": video.filename,
-            "frame_count": len(frames), "assessment": assessment}
+            "frame_count": len(frames), "assessment": assessment,
+            "diagnosis": diagnosis}
