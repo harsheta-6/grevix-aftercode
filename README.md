@@ -1,11 +1,10 @@
 <h3>Gevix Aftercode 2026</h3>
 
-<br/>
 <h4>Idea</h4>
 A road maintenance triage tool that turns ordinary phone or dashcam video into a ranked repair plan.
-
+<br/>
 <b>Process</b>
-<p>Engineer uploads short clips of damaged roads and enter a fixed budget. <span><b>----></b></span>  AI vision rates the condition of each segment and flags the likely root cause. <span><b> ----> </b><span> Transparent prioritization model then picks which segment to fix first using the most benefit per cost until budget runs out
+<p>Engineer uploads short clips of damaged roads and enter a fixed budget. <span><b>----></b></span>  AI vision rates the condition of each segment and flags the likely root cause. <span><b> ----> </b><span> Transparent prioritization model then picks which segment to fix first using the most benefit per cost until budget runs out. <br/>
 <span><b>output:</b></span> <br/>
 1. Ranked work list. <br/>
 2. Map of priority segment <br/>

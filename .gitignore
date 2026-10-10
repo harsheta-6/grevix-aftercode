@@ -1,0 +1,7 @@
+.venv/
+venv/
+__pycache__/
+backend/uploads/
+backend/frames/
+.env
+node_modules/
