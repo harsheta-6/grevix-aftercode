@@ -52,13 +52,6 @@ function TimeBadge({ t, recheck }) {
 }
 
 const pretty = (s) => s.replaceAll('_', ' ')
-const [recorded, setRecorded] = useState('')
-const [batch] = useState(() => crypto.randomUUID())
-
-form.append('video', file)
-form.append('last_modified', String(file.lastModified))
-form.append('batch', batch)
-if (recorded) form.append('recorded_date', recorded)
 
 function Result({ data }) {
   const { assessment: a, diagnosis: d } = data
@@ -129,6 +122,8 @@ export default function App() {
   const [result, setResult] = useState(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
+  const [recorded, setRecorded] = useState('')
+  const [batch] = useState(() => crypto.randomUUID())
 
   async function handleUpload(e) {
     const file = e.target.files[0]
@@ -139,6 +134,9 @@ export default function App() {
     try {
       const form = new FormData()
       form.append('video', file)
+      form.append('last_modified', String(file.lastModified))
+      form.append('batch', batch)
+      if (recorded) form.append('recorded_date', recorded)
       const res = await fetch('/api/upload', { method: 'POST', body: form })
       const data = await res.json()
       if (data.error) setError(data.error)

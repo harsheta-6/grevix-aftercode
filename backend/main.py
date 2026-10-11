@@ -3,7 +3,7 @@ from rules import diagnose, COSTS
 import os, shutil, uuid
 import cv2
 from timestamps import assess_timestamp, usable_for_timing
-from fastapi import FastAPI, UploadFile, Form
+from fastapi import FastAPI, File, UploadFile, Form
 from fastapi.middleware.cors import CORSMiddleware
 
 FALLBACK_TS = {"status": "unverified", "effective": None, "claimed": None,

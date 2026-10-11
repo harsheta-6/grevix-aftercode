@@ -7,6 +7,7 @@ LOCAL_TZ = timezone(timedelta(hours=5, minutes=30))
 CLOCK_TOLERANCE = timedelta(minutes=10)
 MAX_AGE = timedelta(days=30)                            
 EARLIEST_PLAUSIBLE = datetime(2015, 1, 1, tzinfo=UTC)  
+CONFLICT = {"recorded_after_file_was_written", "conflicts_with_declared_date"}
 
 _batch_offsets = {}   
 
@@ -49,7 +50,6 @@ def _problems(ts, now, modified, declared):
     if ts > now + CLOCK_TOLERANCE:
         p.append("timestamp_in_future")
     if ts < EARLIEST_PLAUSIBLE:
-        CONFLICT = {"recorded_after_file_was_written", "conflicts_with_declared_date"}
         p.append("clock_reset_date")
     if modified and ts > modified + CLOCK_TOLERANCE:
         p.append("recorded_after_file_was_written")
