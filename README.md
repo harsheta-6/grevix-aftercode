@@ -57,4 +57,14 @@ A timestamp validator that gathers independent evidence, decides whether the rec
 1. The video is uploaded as normal and is never rejected over its timestamp. <br/> 2. Frames are sampled and analyzed visually, independent of any calendar date. <br/> 3. Evidence is collected: embedded metadata, filename, file-modified time, upload time, and any date the engineer entered. <br/> 4. Plausibility and contradiction checks run (future dates, reset clocks, a clip dated after its file, conflicts with the entered date). <br/> 5. The date is marked verified, corrected, or unverified. <br/> 6. Only verified or corrected dates feed ordering, freshness, and cost-of-waiting. <br/> 7. Ranking continues on road condition alone. A severe road with an unverified date gets a re-check flag, not a demotion.
 </p>
 <h5>Architecture</h5>
-<img width="1344" height="584" alt="Screenshot 2026-10-11 101311" src="https://github.com/user-attachments/assets/af250862-8307-4570-8e1c-e5b4f0b36331" />
+<img width="1000" height="400" alt="Screenshot 2026-10-11 101311" src="https://github.com/user-attachments/assets/af250862-8307-4570-8e1c-e5b4f0b36331" />
+
+<h2>_______________</h2>
+
+<h4>Challenge 2:</h4>
+<span><b>Feedback</b></span>
+<img width="1000" height="398" alt="Screenshot 2026-10-11 195233" src="https://github.com/user-attachments/assets/4eac5f41-f0ce-49aa-80d3-2d453c24ec8f" />
+<br/>
+<p>
+Feedback flags three problems: an unclear purpose, unreliable uploads, and vague errors. I acted on each. The interface now explains what the tool does and exactly what to upload. I fixed the upload failure so videos process consistently. Error messages now say what went wrong and how to fix it. I also added a ranked work list, turning each analysis into an actionable repair order, which moves the tool closer to its goal of helping engineers decide what to fix first. The feedback made the product clearer, more reliable, and more useful.
+</p>
