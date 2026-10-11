@@ -38,7 +38,7 @@ Most tools appraise one road. This allocates a fixed budget across a network, an
 <br/>
 </p>
 
-<h2>___________________________________________________________________________________________</h2>
+<h2>_______________</h2>
 
 <h4>Challenge 1:</h4>
 <p>
