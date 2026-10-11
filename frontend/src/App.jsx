@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import PriorityMap from './PriorityMap.jsx'
+import WorkOrder from './WorkOrder.jsx'
 
 const CAUSE_NAME = {
   drainage: 'Drainage Failure',
@@ -15,6 +16,7 @@ export default function App() {
   const [segments, setSegments] = useState([])
   const [rankedData, setRankedData] = useState(null)
   const [selectedSegmentId, setSelectedSegmentId] = useState(null)
+  const [showWorkOrder, setShowWorkOrder] = useState(false)
   const [budget, setBudget] = useState(50000)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
@@ -145,21 +147,41 @@ export default function App() {
         </div>
 
         {segments.length > 0 && (
-          <button
-            onClick={handleClearAll}
-            style={{
-              background: 'none',
-              border: '1px solid var(--border)',
-              borderRadius: 6,
-              padding: '6px 12px',
-              fontSize: 13,
-              color: 'var(--text-muted)',
-              cursor: 'pointer',
-              fontWeight: 500
-            }}
-          >
-            Clear all ({segments.length})
-          </button>
+          <div style={{ display: 'flex', gap: 10 }}>
+            <button
+              onClick={() => setShowWorkOrder(true)}
+              style={{
+                background: 'var(--primary)',
+                color: '#fff',
+                border: 'none',
+                borderRadius: 6,
+                padding: '6px 14px',
+                fontSize: 13,
+                cursor: 'pointer',
+                fontWeight: 500,
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 6
+              }}
+            >
+              📄 Contractor Work Order
+            </button>
+            <button
+              onClick={handleClearAll}
+              style={{
+                background: 'none',
+                border: '1px solid var(--border)',
+                borderRadius: 6,
+                padding: '6px 12px',
+                fontSize: 13,
+                color: 'var(--text-muted)',
+                cursor: 'pointer',
+                fontWeight: 500
+              }}
+            >
+              Clear all ({segments.length})
+            </button>
+          </div>
         )}
       </header>
 
@@ -505,6 +527,16 @@ export default function App() {
             </div>
           )}
         </div>
+      )}
+
+      {/* Contractor One-Page Work Order Modal */}
+      {showWorkOrder && rankedData && (
+        <WorkOrder
+          rankedData={rankedData}
+          budget={budget}
+          recordedDate={recordedDate}
+          onClose={() => setShowWorkOrder(false)}
+        />
       )}
     </div>
   )

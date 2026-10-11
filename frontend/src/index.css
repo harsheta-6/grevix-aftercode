@@ -54,3 +54,38 @@ button, input, select, textarea {
   z-index: 10;
   font-family: inherit;
 }
+
+/* Print Styles for One-Page Contractor Work Order */
+@media print {
+  body {
+    background: #fff !important;
+    color: #000 !important;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+
+  #root > *:not(.work-order-modal) {
+    display: none !important;
+  }
+
+  .work-order-modal {
+    position: static !important;
+    background: transparent !important;
+    padding: 0 !important;
+    display: block !important;
+  }
+
+  .printable-work-order {
+    padding: 0 !important;
+    width: 100% !important;
+    font-size: 11pt !important;
+    box-shadow: none !important;
+  }
+
+  @page {
+    margin: 1.5cm;
+    size: A4 portrait;
+  }
+}
