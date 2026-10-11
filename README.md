@@ -38,11 +38,13 @@ Most tools appraise one road. This allocates a fixed budget across a network, an
 <br/>
 </p>
 
-<h4>Challenge I:</h4>
+<h2>_______________</h2>
+
+<h4>Challenge 1:</h4>
 <p>
 <span><b>Card Says:</b></span> a wrong dashcam clock corrupts segmentation and ranking. 
-<br/>
-<span><b>My Tool:</b></span> The clock inherently can not corrupt the result because frames are sampled by position in the video and the repair ranking comes from what the AI sees on the road. Dates matter only for ordering clips, judging how fresh a survey is and the reserved cost-of-waiting feature. To handle area that are affected, <span><b>I built a trust layer that protects those uses without touching the core pipeline</b></span>
+<br/><br/>
+<span><b>My Tool:</b></span> The clock inherently can not corrupt the result because frames are sampled by position in the video and the repair ranking comes from what the AI sees on the road. Dates matter only for ordering clips, judging how fresh a survey is and the reserved cost-of-waiting feature. To handle area that are affected, <span><b>I built a trust layer that protects those uses without touching the core pipeline</b></span><br/>
 <br/>
 <span><b>What was built to adapt to the challenge:</b></span><br/>
 A timestamp validator that gathers independent evidence, decides whether the recording date can be trusted, and labels each clip with one of three states:<br/>
@@ -50,7 +52,9 @@ A timestamp validator that gathers independent evidence, decides whether the rec
 <span><b>Corrected:</b></span> an engineer-entered date (or a clock error learned from one on the same upload batch) replaced a bad camera date. The original is kept.<br/>
 <span><b>Unverified:</b></span> the evidence is missing or contradictory, so no date is invented. We only record the latest the clip could have been made.
 </p>
-<h6>Workflow</h6>
+<h5>Workflow</h5>
 <p>
 1. The video is uploaded as normal and is never rejected over its timestamp. <br/> 2. Frames are sampled and analyzed visually, independent of any calendar date. <br/> 3. Evidence is collected: embedded metadata, filename, file-modified time, upload time, and any date the engineer entered. <br/> 4. Plausibility and contradiction checks run (future dates, reset clocks, a clip dated after its file, conflicts with the entered date). <br/> 5. The date is marked verified, corrected, or unverified. <br/> 6. Only verified or corrected dates feed ordering, freshness, and cost-of-waiting. <br/> 7. Ranking continues on road condition alone. A severe road with an unverified date gets a re-check flag, not a demotion.
 </p>
+<h5>Architecture</h5>
+<img width="1344" height="584" alt="Screenshot 2026-10-11 101311" src="https://github.com/user-attachments/assets/af250862-8307-4570-8e1c-e5b4f0b36331" />
