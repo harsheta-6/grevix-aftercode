@@ -1,10 +1,11 @@
 from vision import analyze_frames
-from rules import diagnose, COSTS
+from rules import diagnose, COSTS, rank_segments, calculate_segment_cost, calculate_benefit_score
 import os, shutil, uuid
 import cv2
 from timestamps import assess_timestamp, usable_for_timing
-from fastapi import FastAPI, File, UploadFile, Form
+from fastapi import FastAPI, File, UploadFile, Form, Body
 from fastapi.middleware.cors import CORSMiddleware
+from typing import List, Optional, Dict, Any
 
 FALLBACK_TS = {"status": "unverified", "effective": None, "claimed": None,
                "latest_possible": None, "conflict": False, "resolution": "unknown",
@@ -18,6 +19,9 @@ UPLOAD_DIR = "uploads"
 FRAME_DIR = "frames"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 os.makedirs(FRAME_DIR, exist_ok=True)
+
+# In-memory session store of processed segments
+PROCESSED_SEGMENTS: List[Dict[str, Any]] = []
 
 def extract_frames(video_path, out_prefix, every_sec=3):
     cap = cv2.VideoCapture(video_path)
@@ -44,6 +48,33 @@ def extract_frames(video_path, out_prefix, every_sec=3):
 def health():
     return {"status": "ok"}
 
+@app.get("/api/segments")
+def get_segments():
+    return {"segments": PROCESSED_SEGMENTS}
+
+@app.delete("/api/segments")
+def clear_segments():
+    global PROCESSED_SEGMENTS
+    PROCESSED_SEGMENTS = []
+    return {"status": "cleared"}
+
+@app.delete("/api/segments/{segment_id}")
+def delete_segment(segment_id: str):
+    global PROCESSED_SEGMENTS
+    PROCESSED_SEGMENTS = [s for s in PROCESSED_SEGMENTS if s.get("id") != segment_id]
+    return {"status": "deleted", "id": segment_id}
+
+@app.post("/api/rank")
+def get_ranked_work_list(payload: Dict[str, Any] = Body(...)):
+    segments = payload.get("segments", PROCESSED_SEGMENTS)
+    budget = payload.get("budget", None)
+    if budget is not None:
+        try:
+            budget = float(budget)
+        except (ValueError, TypeError):
+            budget = None
+    return rank_segments(segments, budget=budget)
+
 @app.post("/api/upload")
 async def upload(video: UploadFile = File(...),
                  last_modified: int = Form(None),
@@ -63,12 +94,30 @@ async def upload(video: UploadFile = File(...),
     frames = extract_frames(path, vid_id)
     if not frames:
         return {"id": vid_id, "error": "No frames could be read from this video"}
+    
     assessment = analyze_frames(frames[:5])
     diagnosis = diagnose(assessment["observations"], assessment["overall_condition"])
     diagnosis["works_detail"] = [{"work": w, **COSTS[w]} for w in diagnosis["works"]]
 
-    return {"id": vid_id, "filename": video.filename, "frame_count": len(frames),
-            "assessment": assessment, "diagnosis": diagnosis,
-            "timestamp": ts, "time_usable": usable_for_timing(ts),
-            "needs_recheck": ts["status"] == "unverified"
-                             and assessment["overall_condition"] >= 4}
+    cost = calculate_segment_cost(diagnosis)
+    benefit_score = calculate_benefit_score(assessment, diagnosis)
+    bcr = round((benefit_score / (cost / 1000.0)), 4) if cost > 0 else (benefit_score if benefit_score > 0 else 0.0)
+
+    result = {
+        "id": vid_id,
+        "filename": video.filename,
+        "frame_count": len(frames),
+        "assessment": assessment,
+        "diagnosis": diagnosis,
+        "timestamp": ts,
+        "time_usable": usable_for_timing(ts),
+        "needs_recheck": ts["status"] == "unverified" and assessment["overall_condition"] >= 4,
+        "cost": cost,
+        "benefit_score": benefit_score,
+        "bcr": bcr,
+    }
+
+    # Save to in-memory list
+    PROCESSED_SEGMENTS.append(result)
+
+    return result

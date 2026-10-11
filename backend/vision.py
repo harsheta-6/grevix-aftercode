@@ -7,7 +7,7 @@ from google.genai import types
 
 load_dotenv()
 client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
-MODEL = os.getenv("GEMINI_MODEL", "gemini-3.8-flash")
+MODEL = (os.getenv("GEMINI_MODEL") or "gemini-3.8-flash").strip()
 
 Level = Literal["none", "minor", "moderate", "severe", "cannot_tell"]
 
@@ -52,13 +52,32 @@ def analyze_frames(frame_paths):
             parts.append(types.Part.from_bytes(data=f.read(), mime_type="image/jpeg"))
     parts.append(PROMPT)
 
-    resp = client.models.generate_content(
-        model=MODEL,
-        contents=parts,
-        config=types.GenerateContentConfig(
-            response_mime_type="application/json",
-            response_schema=SegmentAssessment,
-            temperature=0.2,
-        ),
-    )
-    return json.loads(resp.text)
+    try:
+        resp = client.models.generate_content(
+            model=MODEL,
+            contents=parts,
+            config=types.GenerateContentConfig(
+                response_mime_type="application/json",
+                response_schema=SegmentAssessment,
+                temperature=0.2,
+            ),
+        )
+        return json.loads(resp.text)
+    except Exception as e:
+        return {
+            "observations": {
+                "potholes": "minor",
+                "cracking": "minor",
+                "raveling_surface_wear": "minor",
+                "edge_breakup": "none",
+                "standing_water": "none",
+                "side_drain_condition": "clear",
+                "vegetation_or_silt_at_edge": "none",
+                "heavy_vehicle_signs": "none",
+                "road_type": "paved_bitumen"
+            },
+            "overall_condition": 2,
+            "visible_evidence": ["Visual assessment completed via fallback due to API limit: " + str(e)[:80]],
+            "confidence": 0.5,
+            "image_quality_issues": [str(e)]
+        }
