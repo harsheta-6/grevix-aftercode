@@ -16,7 +16,49 @@ const CAUSE_COLOR = {
   none_detected: '#16a34a',
 }
 
+const TS_COLOR = { verified: '#16a34a', corrected: '#d97706', unverified: '#dc2626' }
+const TS_NOTE = {
+  timestamp_in_future: 'Camera clock is ahead of real time.',
+  clock_reset_date: 'Camera clock looks reset to a default date.',
+  recorded_after_file_was_written: 'Timestamp is later than the file itself.',
+  conflicts_with_declared_date: 'Camera date disagrees with the date you entered.',
+  user_declared_date: 'Date taken from what you entered.',
+  batch_offset: 'Corrected using the clock error found on an earlier clip in this batch.',
+  older_than_max_age: 'Clip is old. Enter the recording date to confirm.',
+  no_timestamp_found: 'No timestamp found in this video.',
+  timestamp_check_failed: 'Timestamp check failed; date not verified.',
+  camera_sources_disagree: 'Metadata and file name disagree; the plausible one was used.',
+}
+
+function TimeBadge({ t, recheck }) {
+  const fmt = (d) => new Date(d).toLocaleString('en-IN')
+  const when = t.effective
+    ? fmt(t.effective)
+    : `Recording date unknown${t.latest_possible ? ` (no later than ${fmt(t.latest_possible)})` : ''}`
+  const res = t.effective && t.resolution === 'day' ? ' (accurate to the day only)' : ''
+  const reasons = [t.reason, ...t.notes].filter((r) => TS_NOTE[r])
+  return (
+    <div style={{ border: '1px solid #ddd', borderRadius: 8, padding: 12, marginBottom: 12 }}>
+      <span style={{ background: TS_COLOR[t.status], color: '#fff', padding: '3px 10px', borderRadius: 12, fontSize: 14 }}>
+        Date {t.status}
+      </span>
+      <span style={{ marginLeft: 12 }}>{when}{res}</span>
+      {reasons.map((r) => <div key={r}><small>• {TS_NOTE[r]}</small></div>)}
+      {recheck && <p style={{ color: '#b45309', marginBottom: 0 }}>
+        ⚠ Severe condition but unverified date. Confirm the date or re-survey before scheduling.
+      </p>}
+    </div>
+  )
+}
+
 const pretty = (s) => s.replaceAll('_', ' ')
+const [recorded, setRecorded] = useState('')
+const [batch] = useState(() => crypto.randomUUID())
+
+form.append('video', file)
+form.append('last_modified', String(file.lastModified))
+form.append('batch', batch)
+if (recorded) form.append('recorded_date', recorded)
 
 function Result({ data }) {
   const { assessment: a, diagnosis: d } = data
@@ -25,6 +67,7 @@ function Result({ data }) {
 
   return (
     <div style={{ marginTop: 20, maxWidth: 640 }}>
+    <TimeBadge t={data.timestamp} recheck={data.needs_recheck} />
       <div style={{ border: '1px solid #ddd', borderRadius: 8, padding: 16 }}>
         <span style={{
           background: CAUSE_COLOR[d.cause], color: '#fff',
@@ -101,7 +144,7 @@ export default function App() {
       if (data.error) setError(data.error)
       else setResult(data)
     } catch (err) {
-      setError('Upload failed. Is the backend running?')
+      setError('Upload failed.')
     }
     setLoading(false)
   }
