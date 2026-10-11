@@ -24,23 +24,53 @@ os.makedirs(FRAME_DIR, exist_ok=True)
 PROCESSED_SEGMENTS: List[Dict[str, Any]] = []
 
 def extract_frames(video_path, out_prefix, every_sec=3):
-    cap = cv2.VideoCapture(video_path)
-    fps = cap.get(cv2.CAP_PROP_FPS) or 30
-    step = max(1, int(fps * every_sec))
-    frames, i = [], 0
-    while True:
-        ok, frame = cap.read()
-        if not ok:
-            break
-        if i % step == 0:
-            h, w = frame.shape[:2]
-            if w > 1024:
-                frame = cv2.resize(frame, (1024, int(h * 1024 / w)))
-            path = f"{FRAME_DIR}/{out_prefix}_{i}.jpg"
-            cv2.imwrite(path, frame)
-            frames.append(path)
-        i += 1
-    cap.release()
+    frames = []
+    
+    # Primary method: OpenCV VideoCapture
+    try:
+        cap = cv2.VideoCapture(video_path)
+        if cap.isOpened():
+            fps = cap.get(cv2.CAP_PROP_FPS) or 30.0
+            if fps <= 0 or fps > 120:
+                fps = 30.0
+            step = max(1, int(fps * every_sec))
+            i = 0
+            while True:
+                ok, frame = cap.read()
+                if not ok:
+                    break
+                if i % step == 0:
+                    h, w = frame.shape[:2]
+                    if w > 1024:
+                        frame = cv2.resize(frame, (1024, int(h * 1024 / w)))
+                    path = f"{FRAME_DIR}/{out_prefix}_{i}.jpg"
+                    if cv2.imwrite(path, frame):
+                        frames.append(path)
+                i += 1
+            cap.release()
+    except Exception as e:
+        print(f"OpenCV frame extraction exception: {e}")
+
+    # Fallback method if OpenCV yielded 0 frames (e.g. unsupported codec or container on Windows)
+    if not frames:
+        try:
+            import subprocess
+            import imageio_ffmpeg
+            ffmpeg_exe = imageio_ffmpeg.get_ffmpeg_exe()
+            out_pattern = f"{FRAME_DIR}/{out_prefix}_%03d.jpg"
+            # Extract 1 frame every 3 seconds, scale width to 1024 keeping aspect ratio
+            cmd = [
+                ffmpeg_exe, "-y", "-i", video_path,
+                "-vf", f"fps=1/{every_sec},scale=1024:-1",
+                "-frames:v", "10",
+                out_pattern
+            ]
+            subprocess.run(cmd, capture_output=True, timeout=30)
+            import glob
+            frames = sorted(glob.glob(f"{FRAME_DIR}/{out_prefix}_*.jpg"))
+        except Exception as e:
+            print(f"FFmpeg fallback frame extraction exception: {e}")
+
     return frames
 
 
@@ -80,44 +110,66 @@ async def upload(video: UploadFile = File(...),
                  last_modified: int = Form(None),
                  recorded_date: str = Form(None),
                  batch: str = Form(None)):
-    vid_id = uuid.uuid4().hex[:8]
-    path = f"{UPLOAD_DIR}/{vid_id}_{video.filename}"
-    with open(path, "wb") as f:
-        shutil.copyfileobj(video.file, f)
+    try:
+        vid_id = uuid.uuid4().hex[:8]
+        safe_filename = "".join(c for c in (video.filename or "video.mp4") if c.isalnum() or c in "._- ")
+        path = f"{UPLOAD_DIR}/{vid_id}_{safe_filename}"
+        
+        # Save video stream to disk safely
+        with open(path, "wb") as f:
+            shutil.copyfileobj(video.file, f)
 
-    try:   
-        ts = assess_timestamp(path, video.filename, last_modified,
-                              recorded_date or None, batch)
-    except Exception:
-        ts = FALLBACK_TS
+        # Check that file is not empty
+        file_size = os.path.getsize(path) if os.path.exists(path) else 0
+        if file_size == 0:
+            return {
+                "id": vid_id,
+                "error": "The uploaded video file is empty (0 bytes). Please upload a valid video file."
+            }
 
-    frames = extract_frames(path, vid_id)
-    if not frames:
-        return {"id": vid_id, "error": "No frames could be read from this video"}
-    
-    assessment = analyze_frames(frames[:5])
-    diagnosis = diagnose(assessment["observations"], assessment["overall_condition"])
-    diagnosis["works_detail"] = [{"work": w, **COSTS[w]} for w in diagnosis["works"]]
+        try:   
+            ts = assess_timestamp(path, safe_filename, last_modified,
+                                  recorded_date or None, batch)
+        except Exception as ts_err:
+            print(f"Timestamp evaluation failed: {ts_err}")
+            ts = FALLBACK_TS
 
-    cost = calculate_segment_cost(diagnosis)
-    benefit_score = calculate_benefit_score(assessment, diagnosis)
-    bcr = round((benefit_score / (cost / 1000.0)), 4) if cost > 0 else (benefit_score if benefit_score > 0 else 0.0)
+        frames = extract_frames(path, vid_id)
+        if not frames:
+            return {
+                "id": vid_id,
+                "error": f"No video frames could be decoded from '{video.filename}'. Ensure the video is in standard MP4, MOV, AVI, or WebM format and is not corrupted."
+            }
+        
+        assessment = analyze_frames(frames[:5])
+        diagnosis = diagnose(assessment["observations"], assessment["overall_condition"])
+        diagnosis["works_detail"] = [{"work": w, **COSTS[w]} for w in diagnosis["works"]]
 
-    result = {
-        "id": vid_id,
-        "filename": video.filename,
-        "frame_count": len(frames),
-        "assessment": assessment,
-        "diagnosis": diagnosis,
-        "timestamp": ts,
-        "time_usable": usable_for_timing(ts),
-        "needs_recheck": ts["status"] == "unverified" and assessment["overall_condition"] >= 4,
-        "cost": cost,
-        "benefit_score": benefit_score,
-        "bcr": bcr,
-    }
+        cost = calculate_segment_cost(diagnosis)
+        benefit_score = calculate_benefit_score(assessment, diagnosis)
+        bcr = round((benefit_score / (cost / 1000.0)), 4) if cost > 0 else (benefit_score if benefit_score > 0 else 0.0)
 
-    # Save to in-memory list
-    PROCESSED_SEGMENTS.append(result)
+        result = {
+            "id": vid_id,
+            "filename": video.filename,
+            "frame_count": len(frames),
+            "assessment": assessment,
+            "diagnosis": diagnosis,
+            "timestamp": ts,
+            "time_usable": usable_for_timing(ts),
+            "needs_recheck": ts["status"] == "unverified" and assessment["overall_condition"] >= 4,
+            "cost": cost,
+            "benefit_score": benefit_score,
+            "bcr": bcr,
+        }
 
-    return result
+        # Save to in-memory list
+        PROCESSED_SEGMENTS.append(result)
+
+        return result
+    except Exception as e:
+        print(f"Upload error: {e}")
+        return {
+            "id": None,
+            "error": f"Failed to process video '{video.filename}': {str(e)}"
+        }
