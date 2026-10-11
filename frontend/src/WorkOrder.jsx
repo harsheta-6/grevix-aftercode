@@ -1,3 +1,5 @@
+import { useEffect } from 'react'
+
 const pretty = (s) => (s || '').replaceAll('_', ' ')
 
 const CAUSE_NAME = {
@@ -9,6 +11,14 @@ const CAUSE_NAME = {
 }
 
 export default function WorkOrder({ rankedData, budget, recordedDate, onClose }) {
+  useEffect(() => {
+    function handleKeyDown(e) {
+      if (e.key === 'Escape') onClose()
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [onClose])
+
   if (!rankedData) return null
 
   const { ranked_list, summary } = rankedData
@@ -26,17 +36,23 @@ export default function WorkOrder({ rankedData, budget, recordedDate, onClose })
   }
 
   return (
-    <div className="work-order-modal" style={{
-      position: 'fixed',
-      inset: 0,
-      background: 'rgba(15, 23, 42, 0.65)',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      zIndex: 9999,
-      padding: 16,
-      overflowY: 'auto'
-    }}>
+    <div
+      className="work-order-modal"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose()
+      }}
+      style={{
+        position: 'fixed',
+        inset: 0,
+        background: 'rgba(15, 23, 42, 0.65)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        zIndex: 9999,
+        padding: 16,
+        overflowY: 'auto'
+      }}
+    >
       {/* Modal Actions / Outer Container */}
       <div style={{
         maxWidth: 820,
