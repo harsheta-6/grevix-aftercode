@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import PriorityMap from './PriorityMap.jsx'
 
 const CAUSE_NAME = {
   drainage: 'Drainage Failure',
@@ -328,6 +329,13 @@ export default function App() {
               </div>
             </div>
           )}
+
+          {/* Map of Priority Segments */}
+          <PriorityMap
+            segments={rankedData?.ranked_list || segments}
+            selectedSegmentId={selectedSegmentId}
+            onSelectSegment={(id) => setSelectedSegmentId(id)}
+          />
 
           {/* Ranked Table */}
           <div style={{

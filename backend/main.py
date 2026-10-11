@@ -109,7 +109,9 @@ def get_ranked_work_list(payload: Dict[str, Any] = Body(...)):
 async def upload(video: UploadFile = File(...),
                  last_modified: int = Form(None),
                  recorded_date: str = Form(None),
-                 batch: str = Form(None)):
+                 batch: str = Form(None),
+                 lat: float = Form(None),
+                 lng: float = Form(None)):
     try:
         vid_id = uuid.uuid4().hex[:8]
         safe_filename = "".join(c for c in (video.filename or "video.mp4") if c.isalnum() or c in "._- ")
@@ -149,6 +151,12 @@ async def upload(video: UploadFile = File(...),
         benefit_score = calculate_benefit_score(assessment, diagnosis)
         bcr = round((benefit_score / (cost / 1000.0)), 4) if cost > 0 else (benefit_score if benefit_score > 0 else 0.0)
 
+        # Default road survey corridor location if not provided
+        # Base: 12.9716° N, 77.5946° E (or user provided location)
+        seg_idx = len(PROCESSED_SEGMENTS)
+        coord_lat = lat if lat is not None else round(12.9716 + (seg_idx * 0.005) + (hash(vid_id) % 20) * 0.0003, 6)
+        coord_lng = lng if lng is not None else round(77.5946 + (seg_idx * 0.007) + (hash(vid_id) % 15) * 0.0004, 6)
+
         result = {
             "id": vid_id,
             "filename": video.filename,
@@ -161,6 +169,10 @@ async def upload(video: UploadFile = File(...),
             "cost": cost,
             "benefit_score": benefit_score,
             "bcr": bcr,
+            "coordinates": {
+                "lat": coord_lat,
+                "lng": coord_lng,
+            }
         }
 
         # Save to in-memory list
