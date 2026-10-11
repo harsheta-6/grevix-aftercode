@@ -329,45 +329,48 @@ export default function App() {
   const [recorded, setRecorded] = useState('')
   const [batch] = useState(() => crypto.randomUUID())
 
+
   // Load existing segments on mount
   useEffect(() => {
-    fetchSegments()
+    let ignore = false
+    fetch('/api/segments')
+      .then((res) => res.json())
+      .then((data) => {
+        if (!ignore && data.segments) {
+          setSegments(data.segments)
+        }
+      })
+      .catch(() => {})
+    return () => {
+      ignore = true
+    }
   }, [])
 
   // Recalculate ranking when segments or budget changes
   useEffect(() => {
-    if (segments.length > 0) {
-      fetchRanking(segments, budget)
-    } else {
-      setRankedData(null)
+    let active = true
+    async function updateRanking() {
+      if (segments.length === 0) {
+        if (active) setRankedData(null)
+        return
+      }
+      try {
+        const res = await fetch('/api/rank', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ segments, budget }),
+        })
+        const data = await res.json()
+        if (active) setRankedData(data)
+      } catch {
+        // Failed to rank
+      }
+    }
+    updateRanking()
+    return () => {
+      active = false
     }
   }, [segments, budget])
-
-  async function fetchSegments() {
-    try {
-      const res = await fetch('/api/segments')
-      const data = await res.json()
-      if (data.segments) {
-        setSegments(data.segments)
-      }
-    } catch {
-      // Backend not yet ready or offline
-    }
-  }
-
-  async function fetchRanking(segs, b) {
-    try {
-      const res = await fetch('/api/rank', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ segments: segs, budget: b }),
-      })
-      const data = await res.json()
-      setRankedData(data)
-    } catch {
-      // Failed to rank
-    }
-  }
 
   async function handleUpload(e) {
     const file = e.target.files[0]
@@ -388,9 +391,7 @@ export default function App() {
         setError(data.error)
       } else {
         setLatestResult(data)
-        const updated = [...segments, data]
-        setSegments(updated)
-        fetchRanking(updated, budget)
+        setSegments((prev) => [...prev, data])
         setActiveTab('ranking')
       }
     } catch {
